@@ -1,0 +1,5 @@
+venv/
+.env
+text.txt
+__pycache__/
+ceaser_cipher/
