@@ -1,9 +1,10 @@
 import cloudinary
 import cloudinary.uploader
+from cloudinary import CloudinaryImage
 import os
 from fastapi import FastAPI, UploadFile
 from dotenv import load_dotenv
-from uuid import uuid4
+import json
  
 app = FastAPI()
 load_dotenv()
@@ -15,20 +16,45 @@ cloudinary.config(
     secure=True
 )
 
+result = ""
+
 @app.get('/')
 def home():
     return f"Hello World!"
 
 
 @app.post("/upload_file")
-def upload_file(file :UploadFile):
-    if file:
-        result = cloudinary.uploader.upload(
-            file.file,
-            asset_folder = 'upload', 
-            public_id= str(uuid4()),
-            overwrite = True,
-            resource_type = 'image'
-            )
-        return result['secure_url']
+def upload_file(img_file: UploadFile):
+    cloudinary.uploader.upload(img_file.file.read(), public_id=img_file.filename)
+    url = CloudinaryImage(public_id=img_file.filename).build_url()
 
+    IMAGEJSON = 'imgDB.json'
+    id = 0
+
+    try:
+        with open(IMAGEJSON, 'r') as file:
+            data = json.load(file)
+    except (FileNotFoundError, json.JSONDecodeError):
+        data = {}
+    
+    id = len(data)
+    data[id] = url
+    data = json.dumps(data, indent=4)
+
+    with open(IMAGEJSON, 'w') as file:
+        file.write(data)
+    
+    return {
+        'id': id,
+        'url': url
+    }
+
+@app.get("/get_image/{id}")
+def get_image(id):
+    IMAGEJSON = 'imgDB.json'
+    with open(IMAGEJSON, 'r') as file:
+        data = json.load(file)
+    return {
+        'url': data[id]
+    }
+    
